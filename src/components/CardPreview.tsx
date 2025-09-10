@@ -37,6 +37,23 @@ interface MediaItem {
   thumbnail_url?: string;
 }
 
+interface ProductService {
+  id: string;
+  title: string;
+  description: string;
+  price?: string;
+  category?: string;
+  is_featured: boolean;
+  is_active: boolean;
+  images: any[];
+  inquiries: Array<{
+    inquiry_type: 'link' | 'phone' | 'whatsapp' | 'email';
+    contact_value: string;
+    button_text: string;
+    is_active: boolean;
+  }>;
+}
+
 interface Review {
   id: string;
   reviewer_name: string;
@@ -84,6 +101,7 @@ interface CardPreviewProps {
   formData: FormData;
   socialLinks: SocialLink[];
   mediaItems?: MediaItem[];
+  products?: ProductService[];
   reviews?: Review[];
   isFullPage?: boolean;
 }
@@ -106,6 +124,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   formData,
   socialLinks,
   mediaItems = [],
+  products = [],
   reviews = [],
   isFullPage = false,
 }) => {
@@ -190,6 +209,14 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         }`}
       />
     ));
+  };
+
+  const renderFormattedText = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^• (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
   };
 
   // Full Preview Modal Component
@@ -394,6 +421,67 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 
                 {/* Content Section */}
                 <div className="lg:col-span-2 space-y-8">
+                  {/* Products/Services */}
+                  {products.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                        Products & Services
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {products.filter(p => p.is_active).map((product) => (
+                          <div key={product.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-semibold text-gray-900">{product.title}</h4>
+                                {product.price && (
+                                  <p className="text-green-600 font-medium">{product.price}</p>
+                                )}
+                                {product.category && (
+                                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full mt-1">
+                                    {product.category}
+                                  </span>
+                                )}
+                              </div>
+                              {product.is_featured && (
+                                <Star className="w-5 h-5 text-yellow-500 fill-current" />
+                              )}
+                            </div>
+                            <div 
+                              className="text-sm text-gray-600 mb-4"
+                              dangerouslySetInnerHTML={{ 
+                                __html: renderFormattedText(product.description) 
+                              }}
+                            />
+                            {product.inquiries.filter(i => i.is_active).length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {product.inquiries.filter(i => i.is_active).map((inquiry, index) => (
+                                  <a
+                                    key={index}
+                                    href={
+                                      inquiry.inquiry_type === 'phone' ? `tel:${inquiry.contact_value}` :
+                                      inquiry.inquiry_type === 'whatsapp' ? `https://wa.me/${inquiry.contact_value.replace(/[^0-9]/g, '')}` :
+                                      inquiry.inquiry_type === 'email' ? `mailto:${inquiry.contact_value}` :
+                                      inquiry.contact_value
+                                    }
+                                    target={inquiry.inquiry_type === 'link' ? '_blank' : undefined}
+                                    rel={inquiry.inquiry_type === 'link' ? 'noopener noreferrer' : undefined}
+                                    className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                  >
+                                    {inquiry.inquiry_type === 'link' && <ExternalLink className="w-4 h-4" />}
+                                    {inquiry.inquiry_type === 'phone' && <Phone className="w-4 h-4" />}
+                                    {inquiry.inquiry_type === 'whatsapp' && <MessageCircle className="w-4 h-4" />}
+                                    {inquiry.inquiry_type === 'email' && <Mail className="w-4 h-4" />}
+                                    {inquiry.button_text}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Media Gallery */}
                   {mediaItems.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
@@ -932,6 +1020,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             <div className="flex justify-between">
               <span>Social Links:</span>
               <span className="font-medium">{socialLinks.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Products:</span>
+              <span className="font-medium">{products.length}</span>
             </div>
             <div className="flex justify-between">
               <span>Reviews:</span>

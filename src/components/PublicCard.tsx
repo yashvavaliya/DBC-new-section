@@ -46,6 +46,24 @@ interface MediaItem {
   thumbnail_url?: string;
 }
 
+interface ProductService {
+  id: string;
+  title: string;
+  description: string;
+  price?: string;
+  category?: string;
+  is_featured: boolean;
+  is_active: boolean;
+  images: any[];
+  inquiries: Array<{
+    id: string;
+    inquiry_type: 'link' | 'phone' | 'whatsapp' | 'email';
+    contact_value: string;
+    button_text: string;
+    is_active: boolean;
+  }>;
+}
+
 interface ReviewLink {
   id: string;
   title: string;
@@ -73,6 +91,7 @@ export const PublicCard: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [products, setProducts] = useState<ProductService[]>([]);
   const [reviewLinks, setReviewLinks] = useState<ReviewLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -187,6 +206,36 @@ export const PublicCard: React.FC = () => {
           })
         );
         setReviewLinks(formattedReviews);
+      }
+
+      // Load products/services
+      const { data: productsData, error: productsError } = await supabase
+        .from("products_services")
+        .select("*")
+        .eq("card_id", cardData.id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (productsError) {
+        console.error("Products error:", productsError);
+      } else {
+        // Load inquiries for each product
+        const productsWithInquiries = await Promise.all(
+          (productsData || []).map(async (product) => {
+            const { data: inquiriesData } = await supabase
+              .from("product_inquiries")
+              .select("*")
+              .eq("product_id", product.id)
+              .eq("is_active", true);
+
+            return {
+              ...product,
+              images: [], // Images would be loaded here if needed
+              inquiries: inquiriesData || []
+            };
+          })
+        );
+        setProducts(productsWithInquiries);
       }
 
       // Track view (increment view count)
@@ -312,6 +361,14 @@ export const PublicCard: React.FC = () => {
       return `https://player.vimeo.com/video/${videoId}`;
     }
     return url;
+  };
+
+  const renderFormattedText = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^• (.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
   };
 
   const renderStars = (rating: number) => {
@@ -688,6 +745,82 @@ export const PublicCard: React.FC = () => {
 
             {/* Content Section */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Products/Services */}
+              {products.length > 0 && (
+                <div
+                  ref={cardRef}
+                  className={`w-full p-6 ${getCardShapeClasses()} ${getStyleClasses()} ${getLayoutClasses()}`}
+                  style={{
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                    fontFamily: `'${layout.font}', sans-serif`,
+                    borderColor: theme.primary + "50",
+                  }}
+                >
+                  <h3
+                    className="text-xl font-semibold mb-4 flex items-center gap-2"
+                    style={{ color: theme.text }}
+                  >
+                    <Star className="w-5 h-5 text-yellow-600" />
+                    Products & Services
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {products.map((product) => (
+                      <div key={product.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{product.title}</h4>
+                            {product.price && (
+                              <p className="text-green-600 font-medium text-sm">{product.price}</p>
+                            )}
+                            {product.category && (
+                              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full mt-1">
+                                {product.category}
+                              </span>
+                            )}
+                          </div>
+                          {product.is_featured && (
+                            <Star className="w-5 h-5 text-yellow-500 fill-current" />
+                          )}
+                        </div>
+                        <div 
+                          className="text-sm text-gray-600 mb-4"
+                          style={{ color: theme.text }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: renderFormattedText(product.description) 
+                          }}
+                        />
+                        {product.inquiries.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {product.inquiries.map((inquiry) => (
+                              <a
+                                key={inquiry.id}
+                                href={
+                                  inquiry.inquiry_type === 'phone' ? `tel:${inquiry.contact_value}` :
+                                  inquiry.inquiry_type === 'whatsapp' ? `https://wa.me/${inquiry.contact_value.replace(/[^0-9]/g, '')}` :
+                                  inquiry.inquiry_type === 'email' ? `mailto:${inquiry.contact_value}` :
+                                  inquiry.contact_value
+                                }
+                                target={inquiry.inquiry_type === 'link' ? '_blank' : undefined}
+                                rel={inquiry.inquiry_type === 'link' ? 'noopener noreferrer' : undefined}
+                                className="inline-flex items-center gap-2 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
+                                style={{ backgroundColor: theme.primary }}
+                              >
+                                {inquiry.inquiry_type === 'link' && <ExternalLink className="w-4 h-4" />}
+                                {inquiry.inquiry_type === 'phone' && <Phone className="w-4 h-4" />}
+                                {inquiry.inquiry_type === 'whatsapp' && <MessageCircle className="w-4 h-4" />}
+                                {inquiry.inquiry_type === 'email' && <Mail className="w-4 h-4" />}
+                                {inquiry.button_text}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Contact Actions */}
               <div
                 ref={cardRef}
