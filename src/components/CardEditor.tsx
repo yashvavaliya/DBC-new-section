@@ -29,6 +29,7 @@ import { ImageUpload } from "./ImageUpload";
 import { CardPreview } from "./CardPreview";
 import { MediaUpload } from "./MediaUpload";
 import { ReviewsManager } from "./ReviewsManager";
+import { ProductsServicesManager } from './ProductsServicesManager';
 import {
   generateSocialLink,
   SOCIAL_PLATFORMS,
@@ -204,13 +205,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
 }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    "basic" | "contact" | "social" | "media" | "reviews" | "design" | "preview"
+    "basic" | "contact" | "social" | "media" | "products" | "reviews" | "design" | "preview"
   >("basic");
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [cardId, setCardId] = useState<string | null>(existingCard?.id || null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -628,6 +630,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
     { id: "contact", label: "Contact", icon: Globe },
     { id: "social", label: "Social Links", icon: Share2 },
     { id: "media", label: "Media", icon: Layout },
+    { id: "products", label: "Products/Services", icon: Settings },
     { id: "reviews", label: "Reviews", icon: Eye },
     { id: "design", label: "Design", icon: Palette },
     { id: "advanced", label: "Advanced", icon: Settings },
@@ -1283,6 +1286,14 @@ export const CardEditor: React.FC<CardEditorProps> = ({
                     userId={user?.id || ""}
                   />
                 )}
+                {activeTab === "products" && cardId && (
+                  <ProductsServicesManager
+                    cardId={cardId}
+                    products={products}
+                    onProductsChange={setProducts}
+                    userId={user?.id || ""}
+                  />
+                )}
                 {activeTab === "reviews" && cardId && (
                   <ReviewsManager
                     cardId={cardId}
@@ -1392,6 +1403,7 @@ export const CardEditor: React.FC<CardEditorProps> = ({
                 formData={formData}
                 socialLinks={socialLinks}
                 mediaItems={mediaItems}
+                products={products}
                 reviews={reviews}
               />
             </div>
