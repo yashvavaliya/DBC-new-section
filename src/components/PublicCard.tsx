@@ -842,6 +842,32 @@ export const PublicCard: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {socialLinks.map((link) => (
                     <a
+                      {/* Product Images */}
+                      {product.images && product.images.length > 0 && (
+                        <div className="mb-4">
+                          <div className="grid grid-cols-2 gap-2">
+                            {product.images.slice(0, 4).map((image, index) => (
+                              <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                <img
+                                  src={image.image_url}
+                                  alt={image.alt_text || `${product.title} image ${index + 1}`}
+                                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          {product.images.length > 4 && (
+                            <p className="text-xs text-gray-500 mt-2 text-center">
+                              +{product.images.length - 4} more images
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       key={link.id}
                       href={link.url}
                       target="_blank"
@@ -901,13 +927,20 @@ export const PublicCard: React.FC = () => {
                               <img
                                 src={getVideoThumbnail(item.url)!}
                                 alt={item.title}
-                                className="w-full h-40 md:h-40 object-cover rounded-lg"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-                                <Play className="w-10 h-10 text-gray-600" />
-                              </div>
-                            )}
+                      <div 
+                        className={`text-sm text-gray-600 mb-4 ${
+                          product.text_alignment === 'center' ? 'text-center' : 
+                          product.text_alignment === 'right' ? 'text-right' : 'text-left'
+                        }`}
+                        style={{ color: theme.text }}
+                        dangerouslySetInnerHTML={{ 
+                          __html: product.description
+                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            .replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>')
+                            .replace(/(<li.*<\/li>)/s, '<ul class="list-disc list-inside">$1</ul>')
+                        }}
+                      />
                             <div className="absolute inset-0 bg-black bg-opacity-10 rounded-lg flex items-center justify-center">
                               <Play className="w-10 h-10 text-white" />
                             </div>

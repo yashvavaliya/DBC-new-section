@@ -192,3 +192,27 @@ export function getPlatformDisplayName(
   const baseName = SOCIAL_PLATFORMS[platform]?.name || platform;
   return isAutoSynced ? `${baseName} (Auto-synced)` : baseName;
 }
+
+/**
+ * Get social platform icon component
+ */
+export const getSocialIcon = (platform: string) => {
+  // This would return the appropriate icon component
+  // Implementation depends on your icon library
+  return null;
+};
+
+/**
+ * Social platform colors for styling
+ */
+export const SOCIAL_PLATFORM_COLORS: Record<string, string> = {
+  Instagram: '#E1306C',
+  LinkedIn: '#0A66C2',
+  GitHub: '#333333',
+  Twitter: '#1DA1F2',
+  Facebook: '#1877F3',
+  YouTube: '#FF0000',
+  WhatsApp: '#25D366',
+  Telegram: '#0088CC',
+  'Custom Link': '#6366F1'
+};

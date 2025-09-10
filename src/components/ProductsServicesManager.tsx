@@ -18,10 +18,14 @@ import {
   Tag,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Edit3,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { ImageUpload } from './ImageUpload';
 
 interface ProductService {
   id: string;
@@ -29,19 +33,20 @@ interface ProductService {
   description: string;
   price?: string;
   category?: string;
+  text_alignment: 'left' | 'center' | 'right';
   display_order: number;
   is_featured: boolean;
   is_active: boolean;
-  images: ProductImage[];
+  images: ProductImageLink[];
   inquiries: ProductInquiry[];
 }
 
-interface ProductImage {
+interface ProductImageLink {
   id: string;
   image_url: string;
   alt_text?: string;
   display_order: number;
-  is_primary: boolean;
+  is_active: boolean;
 }
 
 interface ProductInquiry {
@@ -74,11 +79,13 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
     description: '',
     price: '',
     category: '',
+    text_alignment: 'left',
     is_featured: false,
     is_active: true,
     images: [],
     inquiries: []
   });
+  const [newImageUrl, setNewImageUrl] = useState('');
 
   useEffect(() => {
     if (cardId) {
@@ -99,14 +106,15 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
 
       if (productsError) throw productsError;
 
-      // Load images and inquiries for each product
+      // Load image links and inquiries for each product
       const productsWithDetails = await Promise.all(
         (productsData || []).map(async (product) => {
-          // Load images
+          // Load image links
           const { data: imagesData } = await supabase
-            .from('product_images')
+            .from('product_image_links')
             .select('*')
             .eq('product_id', product.id)
+            .eq('is_active', true)
             .order('display_order', { ascending: true });
 
           // Load inquiries
@@ -146,6 +154,7 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
             description: productData.description,
             price: productData.price,
             category: productData.category,
+            text_alignment: productData.text_alignment,
             is_featured: productData.is_featured,
             is_active: productData.is_active
           })
@@ -163,6 +172,7 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
             description: productData.description,
             price: productData.price,
             category: productData.category,
+            text_alignment: productData.text_alignment || 'left',
             display_order: products.length,
             is_featured: productData.is_featured || false,
             is_active: productData.is_active !== false
@@ -172,6 +182,30 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
 
         if (error) throw error;
         productId = data.id;
+      }
+
+      // Save image links
+      if (productData.images && productData.images.length > 0) {
+        // Delete existing image links
+        await supabase
+          .from('product_image_links')
+          .delete()
+          .eq('product_id', productId);
+
+        // Insert new image links
+        const { error: imagesError } = await supabase
+          .from('product_image_links')
+          .insert(
+            productData.images.map((image, index) => ({
+              product_id: productId,
+              image_url: image.image_url,
+              alt_text: image.alt_text,
+              display_order: index,
+              is_active: true
+            }))
+          );
+
+        if (imagesError) throw imagesError;
       }
 
       // Save inquiries
@@ -206,6 +240,7 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
         description: '',
         price: '',
         category: '',
+        text_alignment: 'left',
         is_featured: false,
         is_active: true,
         images: [],
@@ -238,23 +273,33 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
     }
   };
 
-  const handleAddImage = async (productId: string, imageUrl: string) => {
-    try {
-      const { error } = await supabase
-        .from('product_images')
-        .insert({
-          product_id: productId,
-          image_url: imageUrl,
-          display_order: 0,
-          is_primary: false
-        });
+  const handleEditProduct = (product: ProductService) => {
+    setEditingProduct(product);
+    setNewProduct(product);
+    setShowAddForm(true);
+  };
 
-      if (error) throw error;
-      await loadProducts();
-    } catch (error) {
-      console.error('Error adding image:', error);
-      alert('Failed to add image. Please try again.');
-    }
+  const handleAddImageLink = () => {
+    if (!newImageUrl.trim()) return;
+
+    const newImage: ProductImageLink = {
+      id: Date.now().toString(), // Temporary ID for new images
+      image_url: newImageUrl,
+      alt_text: '',
+      display_order: (newProduct.images?.length || 0),
+      is_active: true
+    };
+
+    setNewProduct({
+      ...newProduct,
+      images: [...(newProduct.images || []), newImage]
+    });
+    setNewImageUrl('');
+  };
+
+  const handleRemoveImageLink = (index: number) => {
+    const updatedImages = (newProduct.images || []).filter((_, i) => i !== index);
+    setNewProduct({ ...newProduct, images: updatedImages });
   };
 
   const formatText = (text: string, format: 'bold' | 'italic' | 'bullet') => {
@@ -283,6 +328,23 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
     return text.substring(0, start) + formattedText + text.substring(end);
   };
 
+  const renderFormattedText = (text: string, alignment: string = 'left') => {
+    const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
+    
+    return (
+      <div 
+        className={`${alignmentClass} whitespace-pre-wrap`}
+        dangerouslySetInnerHTML={{ 
+          __html: text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>')
+            .replace(/(<li.*<\/li>)/s, '<ul class="list-disc list-inside">$1</ul>')
+        }}
+      />
+    );
+  };
+
   const renderProductForm = (product: Partial<ProductService>) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -293,6 +355,17 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
           onClick={() => {
             setShowAddForm(false);
             setEditingProduct(null);
+            setNewProduct({
+              title: '',
+              description: '',
+              price: '',
+              category: '',
+              text_alignment: 'left',
+              is_featured: false,
+              is_active: true,
+              images: [],
+              inquiries: []
+            });
           }}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
@@ -350,7 +423,7 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
           </label>
           <div className="border border-gray-300 rounded-lg overflow-hidden">
             {/* Formatting Toolbar */}
-            <div className="bg-gray-50 border-b border-gray-300 p-2 flex gap-2">
+            <div className="bg-gray-50 border-b border-gray-300 p-2 flex gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => setNewProduct({ 
@@ -384,6 +457,40 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
               >
                 <List className="w-4 h-4" />
               </button>
+              
+              {/* Text Alignment */}
+              <div className="border-l border-gray-300 pl-2 ml-2 flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...product, text_alignment: 'left' })}
+                  className={`p-2 rounded transition-colors ${
+                    product.text_alignment === 'left' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'
+                  }`}
+                  title="Align Left"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...product, text_alignment: 'center' })}
+                  className={`p-2 rounded transition-colors ${
+                    product.text_alignment === 'center' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'
+                  }`}
+                  title="Align Center"
+                >
+                  <AlignCenter className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewProduct({ ...product, text_alignment: 'right' })}
+                  className={`p-2 rounded transition-colors ${
+                    product.text_alignment === 'right' ? 'bg-blue-200 text-blue-700' : 'hover:bg-gray-200'
+                  }`}
+                  title="Align Right"
+                >
+                  <AlignRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <textarea
               id="description-input"
@@ -397,6 +504,72 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
           <p className="text-xs text-gray-500 mt-1">
             Use **text** for bold, *text* for italic, and • for bullet points
           </p>
+        </div>
+
+        {/* Image Links */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Product Images (URLs)
+          </label>
+          <div className="space-y-3">
+            {/* Add Image URL Form */}
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="https://example.com/image.jpg"
+              />
+              <button
+                type="button"
+                onClick={handleAddImageLink}
+                disabled={!newImageUrl.trim()}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Image Links List */}
+            {(product.images || []).length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(product.images || []).map((image, index) => (
+                  <div key={index} className="relative group">
+                    <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                      <img
+                        src={image.image_url}
+                        alt={image.alt_text || `Product image ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImageLink(index)}
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <input
+                      type="text"
+                      value={image.alt_text || ''}
+                      onChange={(e) => {
+                        const updatedImages = [...(product.images || [])];
+                        updatedImages[index] = { ...image, alt_text: e.target.value };
+                        setNewProduct({ ...product, images: updatedImages });
+                      }}
+                      className="absolute bottom-2 left-2 right-2 px-2 py-1 bg-white bg-opacity-90 text-xs rounded border border-gray-300 focus:ring-1 focus:ring-blue-500"
+                      placeholder="Alt text (optional)"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Inquiry Buttons */}
@@ -525,6 +698,17 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
             onClick={() => {
               setShowAddForm(false);
               setEditingProduct(null);
+              setNewProduct({
+                title: '',
+                description: '',
+                price: '',
+                category: '',
+                text_alignment: 'left',
+                is_featured: false,
+                is_active: true,
+                images: [],
+                inquiries: []
+              });
             }}
             className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -571,6 +755,32 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {products.map((product) => (
             <div key={product.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              {/* Product Images */}
+              {product.images.length > 0 && (
+                <div className="p-4 border-b border-gray-100">
+                  <div className="grid grid-cols-2 gap-2">
+                    {product.images.slice(0, 4).map((image, index) => (
+                      <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                        <img
+                          src={image.image_url}
+                          alt={image.alt_text || `${product.title} image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {product.images.length > 4 && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      +{product.images.length - 4} more images
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -595,14 +805,11 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => {
-                        setEditingProduct(product);
-                        setNewProduct(product);
-                      }}
+                      onClick={() => handleEditProduct(product)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
@@ -614,8 +821,9 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
                   </div>
                 </div>
 
+                {/* Formatted Description Preview */}
                 <div className="text-sm text-gray-600 mb-3 line-clamp-3">
-                  {product.description.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')}
+                  {renderFormattedText(product.description, product.text_alignment)}
                 </div>
 
                 {product.inquiries.length > 0 && (

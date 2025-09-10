@@ -430,6 +430,32 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {products.filter(p => p.is_active).map((product) => (
                           <div key={product.id} className="border border-gray-200 rounded-lg p-4">
+                            {/* Product Images */}
+                            {product.images && product.images.length > 0 && (
+                              <div className="mb-4">
+                                <div className="grid grid-cols-2 gap-2">
+                                  {product.images.slice(0, 4).map((image, index) => (
+                                    <div key={index} className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                                      <img
+                                        src={image.image_url}
+                                        alt={image.alt_text || `${product.title} image ${index + 1}`}
+                                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                                {product.images.length > 4 && (
+                                  <p className="text-xs text-gray-500 mt-2 text-center">
+                                    +{product.images.length - 4} more images
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
                             <div className="flex items-start justify-between mb-3">
                               <div>
                                 <h4 className="font-semibold text-gray-900">{product.title}</h4>
@@ -447,9 +473,16 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                               )}
                             </div>
                             <div 
-                              className="text-sm text-gray-600 mb-4"
+                              className={`text-sm text-gray-600 mb-4 ${
+                                product.text_alignment === 'center' ? 'text-center' : 
+                                product.text_alignment === 'right' ? 'text-right' : 'text-left'
+                              }`}
                               dangerouslySetInnerHTML={{ 
-                                __html: renderFormattedText(product.description) 
+                                __html: product.description
+                                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                  .replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>')
+                                  .replace(/(<li.*<\/li>)/s, '<ul class="list-disc list-inside">$1</ul>')
                               }}
                             />
                             {product.inquiries.filter(i => i.is_active).length > 0 && (
