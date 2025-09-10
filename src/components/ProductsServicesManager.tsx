@@ -332,16 +332,34 @@ export const ProductsServicesManager: React.FC<ProductsServicesManagerProps> = (
     const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
     
     return (
-      <div 
-        className={`${alignmentClass} whitespace-pre-wrap`}
-        dangerouslySetInnerHTML={{ 
-          __html: text
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>')
-            .replace(/(<li.*<\/li>)/s, '<ul class="list-disc list-inside">$1</ul>')
-        }}
-      />
+      <div className={`${alignmentClass} whitespace-pre-wrap leading-relaxed`}>
+        {text.split('\n').map((line, index) => {
+          // Handle bullet points
+          if (line.trim().startsWith('• ')) {
+            return (
+              <div key={index} className="flex items-start gap-2 mb-1">
+                <span className="text-blue-600 font-bold mt-1">•</span>
+                <span dangerouslySetInnerHTML={{ 
+                  __html: line.replace('• ', '')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+                }} />
+              </div>
+            );
+          }
+          
+          // Handle regular lines
+          return (
+            <div key={index} className={line.trim() === '' ? 'mb-2' : 'mb-1'}>
+              <span dangerouslySetInnerHTML={{ 
+                __html: line
+                  .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                  .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+              }} />
+            </div>
+          );
+        })}
+      </div>
     );
   };
 

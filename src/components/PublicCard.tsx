@@ -364,11 +364,47 @@ export const PublicCard: React.FC = () => {
   };
 
   const renderFormattedText = (text: string) => {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/^• (.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    return text;
+  };
+
+  const renderProductDescription = (text: string, alignment: string = 'left') => {
+    const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
+    
+    return (
+      <div className={`${alignmentClass} whitespace-pre-wrap leading-relaxed text-sm`}>
+        {text.split('\n').map((line, index) => {
+          // Handle bullet points
+          if (line.trim().startsWith('• ')) {
+            return (
+              <div key={index} className="flex items-start gap-2 mb-2">
+                <span className="text-blue-600 font-bold mt-0.5 flex-shrink-0">•</span>
+                <span 
+                  className="flex-1"
+                  dangerouslySetInnerHTML={{ 
+                    __html: line.replace('• ', '')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+                  }} 
+                />
+              </div>
+            );
+          }
+          
+          // Handle regular lines
+          return (
+            <div key={index} className={line.trim() === '' ? 'mb-3' : 'mb-1'}>
+              {line.trim() !== '' && (
+                <span dangerouslySetInnerHTML={{ 
+                  __html: line
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-700">$1</em>')
+                }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const renderStars = (rating: number) => {
@@ -766,15 +802,15 @@ export const PublicCard: React.FC = () => {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {products.map((product) => (
-                      <div key={product.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                      <div key={product.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-300 bg-white/80 backdrop-blur-sm">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h4 className="font-semibold text-gray-900">{product.title}</h4>
+                            <h4 className="font-bold text-lg text-gray-900 mb-2">{product.title}</h4>
                             {product.price && (
-                              <p className="text-green-600 font-medium text-sm">{product.price}</p>
+                              <p className="text-green-600 font-bold text-base mb-2">{product.price}</p>
                             )}
                             {product.category && (
-                              <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full mt-1">
+                              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">
                                 {product.category}
                               </span>
                             )}
@@ -783,15 +819,14 @@ export const PublicCard: React.FC = () => {
                             <Star className="w-5 h-5 text-yellow-500 fill-current" />
                           )}
                         </div>
-                        <div 
-                          className="text-sm text-gray-600 mb-4"
-                          style={{ color: theme.text }}
-                          dangerouslySetInnerHTML={{ 
-                            __html: renderFormattedText(product.description) 
-                          }}
-                        />
+                        
+                        {/* Enhanced Description Display */}
+                        <div className="mb-6" style={{ color: theme.text }}>
+                          {renderProductDescription(product.description, product.text_alignment)}
+                        </div>
+                        
                         {product.inquiries.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
                             {product.inquiries.map((inquiry) => (
                               <a
                                 key={inquiry.id}
@@ -803,7 +838,7 @@ export const PublicCard: React.FC = () => {
                                 }
                                 target={inquiry.inquiry_type === 'link' ? '_blank' : undefined}
                                 rel={inquiry.inquiry_type === 'link' ? 'noopener noreferrer' : undefined}
-                                className="inline-flex items-center gap-2 px-3 py-2 text-white text-sm rounded-lg hover:opacity-90 transition-colors"
+                                className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 hover:scale-105 transition-all duration-200 shadow-md"
                                 style={{ backgroundColor: theme.primary }}
                               >
                                 {inquiry.inquiry_type === 'link' && <ExternalLink className="w-4 h-4" />}
