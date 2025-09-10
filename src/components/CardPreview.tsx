@@ -473,18 +473,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                               )}
                             </div>
                             <div 
-                              className={`text-sm text-gray-600 mb-4 ${
-                                product.text_alignment === 'center' ? 'text-center' : 
-                                product.text_alignment === 'right' ? 'text-right' : 'text-left'
-                              }`}
-                              dangerouslySetInnerHTML={{ 
-                                __html: product.description
-                                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                  .replace(/^• (.+)$/gm, '<li class="ml-4">$1</li>')
-                                  .replace(/(<li.*<\/li>)/s, '<ul class="list-disc list-inside">$1</ul>')
-                              }}
-                            />
+                              className="mb-4"
+                            >
+                              {renderProductDescription(product.description, product.text_alignment)}
+                            </div>
                             {product.inquiries.filter(i => i.is_active).length > 0 && (
                               <div className="flex flex-wrap gap-2">
                                 {product.inquiries.filter(i => i.is_active).map((inquiry, index) => (
